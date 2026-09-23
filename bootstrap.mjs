@@ -10,6 +10,8 @@ const files = JSON.parse(
   gunzipSync(Buffer.from(payload, "base64")).toString("utf8"),
 )
 
+files["lib/saxo/market-data.ts"] = files["lib/saxo/market-data.ts"].replace("previousDayRange(daily, def.sessionTimezone)", "previousDayRange(m5, def.sessionTimezone)")
+
 for (const [path, content] of Object.entries(files)) {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content, "utf8")
