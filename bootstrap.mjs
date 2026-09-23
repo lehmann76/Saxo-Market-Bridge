@@ -100,10 +100,7 @@ function groupDays(bars: any[], timeZone: string) {
 }
 
 async function one(uic: number, timeZone: string, orbStart: string, orbEnd: string) {
-  const [m5, d1] = await Promise.all([
-    getChart("CfdOnIndex", uic, 5, 1200),
-    getChart("CfdOnIndex", uic, 1440, 15),
-  ])
+  const [m5, h1, d1] = await Promise.all([\n    getChart("CfdOnIndex", uic, 5, 1200),\n    getChart("CfdOnIndex", uic, 60, 1200),\n    getChart("CfdOnIndex", uic, 1440, 15),\n  ])
   const fmt = new Intl.DateTimeFormat("en-CA", { timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false })
   const local = (ms: number) => {
     const p: any = {}; for (const x of fmt.formatToParts(new Date(ms))) p[x.type]=x.value
@@ -125,8 +122,7 @@ async function one(uic: number, timeZone: string, orbStart: string, orbEnd: stri
   const orbBars = m5.filter((b:any) => { const x=local(b.time); return x.date===latestDate && x.hm>=orbStart && x.hm<orbEnd })
     .map((b:any) => ({ localTime: local(b.time).hm, time:new Date(b.time).toISOString(), high:b.high, low:b.low, close:b.close }))
   return {
-    m5ByLocalDate: groupDays(m5, timeZone),
-    orbCheck: { date: latestDate, window: orbStart+"-"+orbEnd+" "+timeZone, bars: orbBars,
+    m5ByLocalDate: groupDays(m5, timeZone),\n    emaCheck,\n    orbCheck: { date: latestDate, window: orbStart+"-"+orbEnd+" "+timeZone, bars: orbBars,
       high: orbBars.length ? Math.max(...orbBars.map((b:any)=>b.high)) : null,
       low: orbBars.length ? Math.min(...orbBars.map((b:any)=>b.low)) : null },
     dailyBars: d1.slice(-10).map((b: any) => ({
