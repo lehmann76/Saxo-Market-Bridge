@@ -62,3 +62,67 @@ export async function GET() {
 `
 mkdirSync("app/api/diagnostics/saxo", { recursive: true })
 writeFileSync("app/api/diagnostics/saxo/route.ts", diagnosticsRoute, "utf8")
+
+
+// SAXO_SAFE_MARKET_BARS_DIAGNOSTIC_V1
+const marketBarsDiagnosticRoute = `
+import { NextResponse } from "next/server"
+import { getChart } from "@/lib/saxo/client"
+
+export const dynamic = "force-dynamic"
+
+function localDate(ms: number, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date(ms))
+  const v: Record<string,string> = {}
+  for (const p of parts) v[p.type] = p.value
+  return \`\${v.year}-\${v.month}-\${v.day}\`
+}
+
+function groupDays(bars: any[], timeZone: string) {
+  const days = new Map<string, { high: number, low: number, count: number, first: string, last: string }>()
+  for (const b of bars) {
+    const d = localDate(b.time, timeZone)
+    const cur = days.get(d)
+    if (!cur) {
+      days.set(d, { high: b.high, low: b.low, count: 1, first: new Date(b.time).toISOString(), last: new Date(b.time).toISOString() })
+    } else {
+      cur.high = Math.max(cur.high, b.high)
+      cur.low = Math.min(cur.low, b.low)
+      cur.count++
+      cur.last = new Date(b.time).toISOString()
+    }
+  }
+  return [...days.entries()].map(([date, x]) => ({ date, ...x })).slice(-7)
+}
+
+async function one(uic: number, timeZone: string) {
+  const [m5, d1] = await Promise.all([
+    getChart("CfdOnIndex", uic, 5, 1200),
+    getChart("CfdOnIndex", uic, 1440, 15),
+  ])
+  return {
+    m5ByLocalDate: groupDays(m5, timeZone),
+    dailyBars: d1.slice(-10).map((b: any) => ({
+      time: new Date(b.time).toISOString(),
+      open: b.open, high: b.high, low: b.low, close: b.close,
+    })),
+  }
+}
+
+export async function GET() {
+  try {
+    return NextResponse.json({
+      diagnostic: "Safe market-bar/session check",
+      dax: await one(4910, "Europe/Copenhagen"),
+      nasdaq: await one(4912, "America/New_York"),
+      note: "Only OHLC/time summaries are returned. No account data, tokens or secrets.",
+    })
+  } catch (e: any) {
+    return NextResponse.json({ error: String(e?.message ?? e) }, { status: 500 })
+  }
+}
+`
+mkdirSync("app/api/diagnostics/market-bars", { recursive: true })
+writeFileSync("app/api/diagnostics/market-bars/route.ts", marketBarsDiagnosticRoute, "utf8")
