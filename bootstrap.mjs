@@ -107,14 +107,14 @@ async function one(uic: number, timeZone: string, orbStart: string, orbEnd: stri
   const fmt = new Intl.DateTimeFormat("en-CA", { timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hour12:false })
   const local = (ms: number) => {
     const p: any = {}; for (const x of fmt.formatToParts(new Date(ms))) p[x.type]=x.value
-    return { date: `${p.year}-${p.month}-${p.day}`, hm: `${p.hour === "24" ? "00" : p.hour}:${p.minute}` }
+    return { date: p.year+"-"+p.month+"-"+p.day, hm: (p.hour === "24" ? "00" : p.hour)+":"+p.minute }
   }
   const latestDate = local(m5[m5.length-1].time).date
   const orbBars = m5.filter((b:any) => { const x=local(b.time); return x.date===latestDate && x.hm>=orbStart && x.hm<orbEnd })
     .map((b:any) => ({ localTime: local(b.time).hm, time:new Date(b.time).toISOString(), high:b.high, low:b.low, close:b.close }))
   return {
     m5ByLocalDate: groupDays(m5, timeZone),
-    orbCheck: { date: latestDate, window: `${orbStart}-${orbEnd} ${timeZone}`, bars: orbBars,
+    orbCheck: { date: latestDate, window: orbStart+"-"+orbEnd+" "+timeZone, bars: orbBars,
       high: orbBars.length ? Math.max(...orbBars.map((b:any)=>b.high)) : null,
       low: orbBars.length ? Math.min(...orbBars.map((b:any)=>b.low)) : null },
     dailyBars: d1.slice(-10).map((b: any) => ({
