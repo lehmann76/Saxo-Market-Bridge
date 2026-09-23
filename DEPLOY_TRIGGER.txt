@@ -5,3 +5,5 @@ ORB validation deployment trigger
 ORB syntax fix deployment
 
 EMA validation deployment
+
+EMA diagnostic final deploy
