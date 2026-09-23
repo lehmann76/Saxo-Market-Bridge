@@ -109,6 +109,18 @@ async function one(uic: number, timeZone: string, orbStart: string, orbEnd: stri
     const p: any = {}; for (const x of fmt.formatToParts(new Date(ms))) p[x.type]=x.value
     return { date: p.year+"-"+p.month+"-"+p.day, hm: (p.hour === "24" ? "00" : p.hour)+":"+p.minute }
   }
+  const calcEma = (bars: any[], period: number) => {
+    if (bars.length < period) return null
+    const vals = bars.map((b:any) => b.close)
+    const k = 2 / (period + 1)
+    let e = vals.slice(0, period).reduce((a:number,b:number)=>a+b,0) / period
+    for (let i=period;i<vals.length;i++) e = vals[i]*k + e*(1-k)
+    return e
+  }
+  const emaCheck = {
+    m5: { ema8: calcEma(m5,8), ema21: calcEma(m5,21), lastClose: m5[m5.length-1]?.close ?? null, lastTime: m5.length ? new Date(m5[m5.length-1].time).toISOString() : null },
+    h1: { ema8: calcEma(h1,8), ema21: calcEma(h1,21), lastClose: h1[h1.length-1]?.close ?? null, lastTime: h1.length ? new Date(h1[h1.length-1].time).toISOString() : null },
+  }
   const latestDate = local(m5[m5.length-1].time).date
   const orbBars = m5.filter((b:any) => { const x=local(b.time); return x.date===latestDate && x.hm>=orbStart && x.hm<orbEnd })
     .map((b:any) => ({ localTime: local(b.time).hm, time:new Date(b.time).toISOString(), high:b.high, low:b.low, close:b.close }))
