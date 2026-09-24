@@ -48,3 +48,9 @@ Do not commit or display Saxo access tokens, refresh tokens, OAuth authorization
 - DAX validation: M5 EMA8 25360.521688 / EMA21 25359.227640; H1 EMA8 25396.098324 / EMA21 25481.353126.
 - Nasdaq validation: M5 EMA8 30475.181274 / EMA21 30468.482252; H1 EMA8 30505.935626 / EMA21 30571.474159.
 - Core market-data calculations verified: ORB, PDH/PDL, M5 EMA8/21, H1 EMA8/21.
+
+## Integration update — 2026-09-24
+- Added production read-only endpoint: /api/bridge/snapshot.
+- Vercel deployment for the endpoint succeeded (commit ef7121fc3eff10c62fce2a10839cae198da6a8a9).
+- Endpoint is no-store/noindex and returns derived DAX/Nasdaq market snapshots only; it does not expose account data, orders, OAuth tokens or Saxo credentials.
+- Next integration step: secure the bridge with BRIDGE_API_KEY and connect it as an external API action/plugin so future ChatGPT analysis can request fresh Saxo data without screenshots.
