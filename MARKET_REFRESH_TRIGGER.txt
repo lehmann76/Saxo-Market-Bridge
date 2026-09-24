@@ -1,1 +1,1 @@
-Inspect market data definitions.
+Inspect instrument session definitions.
