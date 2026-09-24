@@ -24,7 +24,7 @@ jobs:
         run: |
           node bootstrap.mjs >/dev/null
           echo "ASIAN_SOURCE_BEGIN"
-          sed -n "1,100p" lib/saxo/market-data.ts
+          sed -n "1,180p" lib/saxo/instruments.ts
           echo "ASIAN_SOURCE_END"
 
       - name: Fetch read-only Saxo market snapshot
