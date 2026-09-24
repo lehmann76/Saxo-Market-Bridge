@@ -1,1 +1,1 @@
-Trigger live market snapshot refresh after BRIDGE_API_KEY rotation.
+Trigger live market snapshot refresh after diagnostic workflow update.
