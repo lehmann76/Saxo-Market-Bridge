@@ -1,1 +1,1 @@
-Trigger live market snapshot refresh after Saxo reconnection.
+Verify 02:00-08:00 Copenhagen Asian Range deployment.
