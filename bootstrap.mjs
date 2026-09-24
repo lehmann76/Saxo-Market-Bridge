@@ -169,6 +169,47 @@ import { getAllMarketData } from "@/lib/saxo/market-data"
 
 export const dynamic = "force-dynamic"
 
+function deriveTechnicalContext(m: any) {
+  const price = m.lastClose
+  const h1 = m.ema?.h1
+  const m5 = m.ema?.m5
+
+  const h1Direction = h1?.ema8 > h1?.ema21 ? "bullish" : h1?.ema8 < h1?.ema21 ? "bearish" : "flat"
+  const m5Direction = m5?.ema8 > m5?.ema21 ? "bullish" : m5?.ema8 < m5?.ema21 ? "bearish" : "flat"
+
+  const orbState = price > m.orb?.high ? "above" : price < m.orb?.low ? "below" : "inside"
+  const asianState = price > m.asianSession?.high ? "above" : price < m.asianSession?.low ? "below" : "inside"
+  const previousDayState = price > m.previousDay?.high ? "above" : price < m.previousDay?.low ? "below" : "inside"
+
+  let score = 0
+  score += h1Direction === "bullish" ? 2 : h1Direction === "bearish" ? -2 : 0
+  score += m5Direction === "bullish" ? 1 : m5Direction === "bearish" ? -1 : 0
+  score += orbState === "above" ? 2 : orbState === "below" ? -2 : 0
+  score += asianState === "above" ? 1 : asianState === "below" ? -1 : 0
+  score += previousDayState === "above" ? 1 : previousDayState === "below" ? -1 : 0
+
+  const rawLevels = [
+    ["ORB high", m.orb?.high], ["ORB low", m.orb?.low],
+    ["Asian high", m.asianSession?.high], ["Asian low", m.asianSession?.low],
+    ["PDH", m.previousDay?.high], ["PDL", m.previousDay?.low],
+  ].filter((x: any[]) => typeof x[1] === "number")
+
+  const supports = rawLevels.filter((x: any[]) => x[1] < price).sort((a: any[], b: any[]) => b[1] - a[1])
+  const resistances = rawLevels.filter((x: any[]) => x[1] > price).sort((a: any[], b: any[]) => a[1] - b[1])
+
+  return {
+    h1Direction,
+    m5Direction,
+    orbState,
+    asianState,
+    previousDayState,
+    score,
+    technicalSetup: score >= 4 ? "LONG_CANDIDATE" : score <= -4 ? "SHORT_CANDIDATE" : "WAIT",
+    nearestSupport: supports[0] ? { name: supports[0][0], price: supports[0][1], distance: price - supports[0][1] } : null,
+    nearestResistance: resistances[0] ? { name: resistances[0][0], price: resistances[0][1], distance: resistances[0][1] - price } : null,
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const expected = process.env.BRIDGE_API_KEY
@@ -179,7 +220,8 @@ export async function GET(request: Request) {
     if (!supplied || supplied !== expected) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    const markets = await getAllMarketData()
+    const rawMarkets = await getAllMarketData()
+    const markets = rawMarkets.map((m: any) => ({ ...m, technical: deriveTechnicalContext(m) }))
     return NextResponse.json(
       {
         source: "Saxo LIVE OpenAPI",
