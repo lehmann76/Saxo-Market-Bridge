@@ -12,6 +12,13 @@ const files = JSON.parse(
 
 files["lib/saxo/market-data.ts"] = files["lib/saxo/market-data.ts"].replace("previousDayRange(daily, def.sessionTimezone)", "previousDayRange(m5, def.sessionTimezone)")
 
+// Strategy convention: Asian Range is fixed at 02:00–08:00 Europe/Copenhagen.
+// Only alter lines explicitly related to the Asian range to avoid changing other midnight-based logic.
+files["lib/saxo/market-data.ts"] = files["lib/saxo/market-data.ts"]
+  .split("\n")
+  .map((line) => /asian/i.test(line) ? line.replaceAll("00:00", "02:00") : line)
+  .join("\n")
+
 for (const [path, content] of Object.entries(files)) {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content, "utf8")
