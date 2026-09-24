@@ -9,3 +9,5 @@ EMA validation deployment
 EMA diagnostic final deploy
 
 Live snapshot bridge deploy
+
+Redeploy after BRIDGE_API_KEY configuration
