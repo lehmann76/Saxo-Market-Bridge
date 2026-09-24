@@ -20,6 +20,12 @@ files["lib/saxo/market-data.ts"] = files["lib/saxo/market-data.ts"]
   .replaceAll("'00:00', '08:00'", "'02:00', '08:00'")
   .replaceAll("'00:00–08:00", "'02:00–08:00")
 
+// Asian range strategy convention for both DAX and Nasdaq.
+files["lib/saxo/instruments.ts"] = files["lib/saxo/instruments.ts"].replaceAll(
+  'asianStart: "00:00"',
+  'asianStart: "02:00"',
+)
+
 for (const [path, content] of Object.entries(files)) {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, content, "utf8")
