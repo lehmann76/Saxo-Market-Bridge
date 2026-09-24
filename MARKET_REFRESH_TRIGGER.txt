@@ -1,1 +1,1 @@
-Trigger live market snapshot refresh after diagnostic workflow update.
+Trigger live market snapshot refresh after Saxo reconnection.
