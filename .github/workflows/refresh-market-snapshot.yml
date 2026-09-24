@@ -27,10 +27,15 @@ jobs:
           set -euo pipefail
           test -n "$BRIDGE_API_KEY"
           mkdir -p data
-          curl --fail-with-body --silent --show-error \
+          http_code=$(curl --silent --show-error -w "%{http_code}" \
             -H "x-api-key: $BRIDGE_API_KEY" \
             "https://saxo-market-data-dashboard.vercel.app/api/bridge/snapshot" \
-            -o data/live-market-snapshot.json
+            -o data/live-market-snapshot.json)
+          if [ "$http_code" != "200" ]; then
+            echo "Bridge returned HTTP $http_code"
+            python -m json.tool data/live-market-snapshot.json || cat data/live-market-snapshot.json
+            exit 1
+          fi
           python -m json.tool data/live-market-snapshot.json >/dev/null
 
       - name: Commit snapshot when changed
