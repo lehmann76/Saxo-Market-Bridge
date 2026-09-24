@@ -155,8 +155,16 @@ import { getAllMarketData } from "@/lib/saxo/market-data"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const expected = process.env.BRIDGE_API_KEY
+    if (!expected) {
+      return NextResponse.json({ error: "Bridge API key is not configured" }, { status: 503 })
+    }
+    const supplied = request.headers.get("x-api-key")
+    if (!supplied || supplied !== expected) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const markets = await getAllMarketData()
     return NextResponse.json(
       {
