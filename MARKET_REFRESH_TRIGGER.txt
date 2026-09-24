@@ -1,1 +1,1 @@
-Validate final technical-context deployment.
+Final validation: breakout, acceptance, displacement and freshness metrics.
