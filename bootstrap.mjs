@@ -166,20 +166,45 @@ writeFileSync("app/api/diagnostics/market-bars/route.ts", marketBarsDiagnosticRo
 const bridgeSnapshotRoute = `
 import { NextResponse } from "next/server"
 import { getAllMarketData } from "@/lib/saxo/market-data"
+import { getChart } from "@/lib/saxo/client"
 
 export const dynamic = "force-dynamic"
 
-function deriveTechnicalContext(m: any) {
+function median(values: number[]) {
+  if (!values.length) return null
+  const x = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(x.length / 2)
+  return x.length % 2 ? x[mid] : (x[mid - 1] + x[mid]) / 2
+}
+
+async function deriveTechnicalContext(m: any) {
   const price = m.lastClose
   const h1 = m.ema?.h1
   const m5 = m.ema?.m5
+  const bars = await getChart(m.assetType, m.uic, 5, 60)
+  const recent = bars.slice(-3)
+  const last = bars[bars.length - 1] ?? null
+  const prior = bars.slice(-21, -1)
 
   const h1Direction = h1?.ema8 > h1?.ema21 ? "bullish" : h1?.ema8 < h1?.ema21 ? "bearish" : "flat"
   const m5Direction = m5?.ema8 > m5?.ema21 ? "bullish" : m5?.ema8 < m5?.ema21 ? "bearish" : "flat"
-
   const orbState = price > m.orb?.high ? "above" : price < m.orb?.low ? "below" : "inside"
   const asianState = price > m.asianSession?.high ? "above" : price < m.asianSession?.low ? "below" : "inside"
   const previousDayState = price > m.previousDay?.high ? "above" : price < m.previousDay?.low ? "below" : "inside"
+
+  const ranges = prior.map((b: any) => Math.max(0, b.high - b.low)).filter((x: number) => x > 0)
+  const medianRange = median(ranges)
+  const lastRange = last ? Math.max(0, last.high - last.low) : null
+  const lastBody = last ? Math.abs(last.close - last.open) : null
+  const rangeRatio = lastRange != null && medianRange ? lastRange / medianRange : null
+  const bodyRatio = lastRange ? lastBody / lastRange : null
+
+  const closesAboveOrb = recent.filter((b: any) => b.close > m.orb?.high).length
+  const closesBelowOrb = recent.filter((b: any) => b.close < m.orb?.low).length
+  const bullishDisplacement = orbState === "above" && (rangeRatio ?? 0) >= 1.5 && (bodyRatio ?? 0) >= 0.6 && last?.close > last?.open
+  const bearishDisplacement = orbState === "below" && (rangeRatio ?? 0) >= 1.5 && (bodyRatio ?? 0) >= 0.6 && last?.close < last?.open
+  const bullishAcceptance = orbState === "above" && (closesAboveOrb >= 2 || bullishDisplacement)
+  const bearishAcceptance = orbState === "below" && (closesBelowOrb >= 2 || bearishDisplacement)
 
   let score = 0
   score += h1Direction === "bullish" ? 2 : h1Direction === "bearish" ? -2 : 0
@@ -187,24 +212,36 @@ function deriveTechnicalContext(m: any) {
   score += orbState === "above" ? 2 : orbState === "below" ? -2 : 0
   score += asianState === "above" ? 1 : asianState === "below" ? -1 : 0
   score += previousDayState === "above" ? 1 : previousDayState === "below" ? -1 : 0
+  score += bullishAcceptance ? 1 : bearishAcceptance ? -1 : 0
+
+  const longAligned = h1Direction === "bullish" && orbState === "above" && (m5Direction === "bullish" || bullishAcceptance)
+  const shortAligned = h1Direction === "bearish" && orbState === "below" && (m5Direction === "bearish" || bearishAcceptance)
 
   const rawLevels = [
     ["ORB high", m.orb?.high], ["ORB low", m.orb?.low],
     ["Asian high", m.asianSession?.high], ["Asian low", m.asianSession?.low],
     ["PDH", m.previousDay?.high], ["PDL", m.previousDay?.low],
   ].filter((x: any[]) => typeof x[1] === "number")
-
   const supports = rawLevels.filter((x: any[]) => x[1] < price).sort((a: any[], b: any[]) => b[1] - a[1])
   const resistances = rawLevels.filter((x: any[]) => x[1] > price).sort((a: any[], b: any[]) => a[1] - b[1])
+  const ageMinutes = m.latestTimestamp ? Math.max(0, (Date.now() - new Date(m.latestTimestamp).getTime()) / 60000) : null
 
   return {
-    h1Direction,
-    m5Direction,
-    orbState,
-    asianState,
-    previousDayState,
-    score,
-    technicalSetup: score >= 4 ? "LONG_CANDIDATE" : score <= -4 ? "SHORT_CANDIDATE" : "WAIT",
+    h1Direction, m5Direction, orbState, asianState, previousDayState, score,
+    technicalSetup: longAligned && score >= 4 ? "LONG_CANDIDATE" : shortAligned && score <= -4 ? "SHORT_CANDIDATE" : "WAIT",
+    breakout: {
+      closesAboveOrbLast3: closesAboveOrb,
+      closesBelowOrbLast3: closesBelowOrb,
+      rangeRatioVsMedian20: rangeRatio,
+      bodyRatio,
+      bullishDisplacement, bearishDisplacement,
+      bullishAcceptance, bearishAcceptance,
+    },
+    freshness: {
+      latestTimestamp: m.latestTimestamp,
+      ageMinutes,
+      status: ageMinutes == null ? "unknown" : ageMinutes <= 10 ? "fresh" : ageMinutes <= 30 ? "aging" : "stale",
+    },
     nearestSupport: supports[0] ? { name: supports[0][0], price: supports[0][1], distance: price - supports[0][1] } : null,
     nearestResistance: resistances[0] ? { name: resistances[0][0], price: resistances[0][1], distance: resistances[0][1] - price } : null,
   }
@@ -221,7 +258,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const rawMarkets = await getAllMarketData()
-    const markets = rawMarkets.map((m: any) => ({ ...m, technical: deriveTechnicalContext(m) }))
+    const markets = await Promise.all(rawMarkets.map(async (m: any) => ({ ...m, technical: await deriveTechnicalContext(m) })))
     return NextResponse.json(
       {
         source: "Saxo LIVE OpenAPI",
