@@ -54,3 +54,22 @@ Do not commit or display Saxo access tokens, refresh tokens, OAuth authorization
 - Vercel deployment for the endpoint succeeded (commit ef7121fc3eff10c62fce2a10839cae198da6a8a9).
 - Endpoint is no-store/noindex and returns derived DAX/Nasdaq market snapshots only; it does not expose account data, orders, OAuth tokens or Saxo credentials.
 - Next integration step: secure the bridge with BRIDGE_API_KEY and connect it as an external API action/plugin so future ChatGPT analysis can request fresh Saxo data without screenshots.
+
+
+## Final integration state — 2026-09-24
+
+- Secure read-only chain is operational: Saxo LIVE OpenAPI -> Vercel -> GitHub Actions -> ChatGPT GitHub connector.
+- Production bridge endpoint: `/api/bridge/snapshot`.
+- Endpoint requires `x-api-key` matching Vercel `BRIDGE_API_KEY`; GitHub Actions stores the same value as a repository secret. Secrets are not committed.
+- GitHub workflow `.github/workflows/refresh-market-snapshot.yml` can be triggered by a change to `MARKET_REFRESH_TRIGGER.txt`; it fetches the protected bridge and writes `data/live-market-snapshot.json`.
+- Verified end-to-end workflow run succeeded after Saxo reconnect and API-key rotation.
+- Asian Range is now fixed to **02:00–08:00 Europe/Copenhagen** for both DAX and Nasdaq and was verified in the live snapshot.
+- DAX ORB remains **09:00–09:15 Europe/Copenhagen**.
+- Nasdaq ORB remains **09:30–09:45 America/New_York** (DST-safe internally).
+- Snapshot contains: current/last M5 close, ORB H/L, Asian H/L, PDH/PDL, M5 EMA8/21, H1 EMA8/21, nearest support/resistance.
+- Technical context additionally contains: H1/M5 direction, ORB/Asian/previous-day state, alignment score, LONG/SHORT/WAIT technical candidate, last-3-M5 ORB acceptance, displacement metrics, and data freshness.
+- Final trading decision is intentionally not based on technical score alone. ChatGPT must combine the fresh snapshot with current macro/news/catalyst context and return LONG / SHORT / WAIT, confidence, entry condition, invalidation/stop, TP1/TP2, and concise reasoning.
+- If snapshot freshness is stale, do not invent a live signal. Refresh first; if Saxo is disconnected, reconnect OAuth.
+- No order placement, account data, Saxo credentials, OAuth tokens, or secrets are exposed by the bridge.
+- Old screenshot-based trading automations remain disabled.
+- Operational security follow-up: repository is currently public, so the derived `data/live-market-snapshot.json` file is publicly readable. No secrets/account data are in it, but making the repository private is recommended if the GitHub/Vercel connections are retained.
