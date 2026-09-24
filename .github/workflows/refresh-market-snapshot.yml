@@ -20,6 +20,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Inspect generated Asian-range source
+        run: |
+          node bootstrap.mjs >/dev/null
+          echo "ASIAN_SOURCE_BEGIN"
+          grep -ni -C 4 "asian" lib/saxo/market-data.ts || true
+          echo "ASIAN_SOURCE_END"
+
       - name: Fetch read-only Saxo market snapshot
         env:
           BRIDGE_API_KEY: ${{ secrets.BRIDGE_API_KEY }}
