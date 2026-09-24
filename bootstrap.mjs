@@ -147,3 +147,39 @@ export async function GET() {
 `
 mkdirSync("app/api/diagnostics/market-bars", { recursive: true })
 writeFileSync("app/api/diagnostics/market-bars/route.ts", marketBarsDiagnosticRoute, "utf8")
+
+
+const bridgeSnapshotRoute = `
+import { NextResponse } from "next/server"
+import { getAllMarketData } from "@/lib/saxo/market-data"
+
+export const dynamic = "force-dynamic"
+
+export async function GET() {
+  try {
+    const markets = await getAllMarketData()
+    return NextResponse.json(
+      {
+        source: "Saxo LIVE OpenAPI",
+        mode: "read-only",
+        asOf: new Date().toISOString(),
+        markets,
+        note: "Derived market snapshot only. No account data, orders, tokens or secrets.",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      },
+    )
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: String(e?.message ?? e) },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    )
+  }
+}
+`
+mkdirSync("app/api/bridge/snapshot", { recursive: true })
+writeFileSync("app/api/bridge/snapshot/route.ts", bridgeSnapshotRoute, "utf8")
