@@ -1,1 +1,1 @@
-Verify 02:00-08:00 Copenhagen Asian Range deployment.
+Verify corrected 02:00-08:00 Asian Range and refresh snapshot.
