@@ -1,1 +1,1 @@
-EMA watch refresh requested: 2026-09-25T12:22:00Z
+EMA watch refresh after Saxo reconnect: 2026-09-25T12:26:00Z
