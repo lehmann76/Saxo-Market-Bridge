@@ -1,0 +1,23 @@
+name: Extract generated auth source
+on:
+  push:
+    paths:
+      - ".github/workflows/extract-source.yml"
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node bootstrap.mjs
+      - run: |
+          cp lib/saxo/tokens.ts AUTH_SOURCE_TMP.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add AUTH_SOURCE_TMP.ts
+          git commit -m "Temporary auth source extraction"
+          git push
